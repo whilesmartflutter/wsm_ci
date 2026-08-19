@@ -1,0 +1,142 @@
+# Reusable staging distribution: iOS -> TestFlight, Android -> Firebase App
+# Distribution. Callers own the trigger; see README.md for the stub.
+name: Staging Distribution (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      platforms:
+        description: 'android | ios | both'
+        required: true
+        type: string
+      release_notes:
+        required: true
+        type: string
+      flavor:
+        required: false
+        default: 'staging'
+        type: string
+      flutter_version:
+        required: false
+        default: '3.41.9'
+        type: string
+      flutter_channel:
+        required: false
+        default: 'stable'
+        type: string
+      xcode_version:
+        required: false
+        default: '26'
+        type: string
+      java_version:
+        required: false
+        default: '17'
+        type: string
+      ruby_version:
+        required: false
+        default: '3.2.2'
+        type: string
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    if: contains(inputs.platforms, 'android') || inputs.platforms == 'both'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: ${{ inputs.flutter_channel }}
+          cache: true
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby_version }}
+          bundler-cache: true
+          working-directory: android/fastlane
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java_version }}
+
+      - name: Setup Firebase credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > firebase_service_account.json
+
+      - name: Setup Android signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/key.jks
+          cat <<EOP > android/key.properties
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=key.jks
+          EOP
+
+      - name: Install Fastlane gems
+        working-directory: android/fastlane
+        run: bundle install
+
+      - name: Distribute to Firebase App Distribution
+        working-directory: android/fastlane
+        run: bundle exec fastlane release_firebase_app_distribution release_notes:"${{ inputs.release_notes }}"
+        env:
+          FIREBASE_APP_ID_ANDROID_STAGING: ${{ secrets.FIREBASE_APP_ID_ANDROID_STAGING }}
+          APP_PACKAGE_NAME: ${{ vars.APP_PACKAGE_NAME }}
+
+  ios:
+    runs-on: macos-latest
+    if: contains(inputs.platforms, 'ios') || inputs.platforms == 'both'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: ${{ inputs.flutter_channel }}
+          cache: true
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby_version }}
+          bundler-cache: true
+          working-directory: ios/fastlane
+
+      - name: Install Fastlane gems
+        working-directory: ios/fastlane
+        run: bundle install
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ inputs.xcode_version }}
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_GIT_DEPLOY_KEY }}
+
+      - name: Distribute to TestFlight (staging)
+        working-directory: ios/fastlane
+        run: bundle exec fastlane release_testflight_staging release_notes:"${{ inputs.release_notes }}"
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

@@ -1,0 +1,150 @@
+# Reusable production release: Android -> Play internal track, iOS -> TestFlight.
+name: Tag Release (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'all | android | ios'
+        required: false
+        default: 'all'
+        type: string
+      flutter_version:
+        required: false
+        default: '3.41.9'
+        type: string
+      flutter_channel:
+        required: false
+        default: 'stable'
+        type: string
+      xcode_version:
+        required: false
+        default: '26'
+        type: string
+      java_version:
+        required: false
+        default: '17'
+        type: string
+      ruby_version:
+        required: false
+        default: '3.2.2'
+        type: string
+      run_build_runner:
+        description: 'Run dart run build_runner before building'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    name: Tag Release - ${{ matrix.platform_name }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      SHOULD_RUN: ${{ inputs.platform == 'all' || inputs.platform == matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: android
+            platform_name: Android
+            runner: ubuntu-latest
+            fastlane_dir: android/fastlane
+          - os: ios
+            platform_name: iOS
+            runner: macos-latest
+            fastlane_dir: ios/fastlane
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: ${{ inputs.flutter_channel }}
+          cache: true
+          cache-key: flutter-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby_version }}
+          bundler-cache: true
+          working-directory: ${{ matrix.fastlane_dir }}
+
+      - name: Install Fastlane gems
+        working-directory: ${{ matrix.fastlane_dir }}
+        run: bundle install
+
+      - name: Setup Java
+        if: matrix.os == 'android' && env.SHOULD_RUN == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java_version }}
+
+      - name: Setup Xcode
+        if: matrix.os == 'ios' && env.SHOULD_RUN == 'true'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ inputs.xcode_version }}
+
+      - name: Setup Android signing
+        if: matrix.os == 'android' && env.SHOULD_RUN == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/key.jks
+          cat <<EOP > android/key.properties
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=key.jks
+          EOP
+
+      - name: Setup Play Store credentials
+        if: matrix.os == 'android' && env.SHOULD_RUN == 'true'
+        env:
+          PLAYSTORE_SERVICE_ACCOUNT_BASE64: ${{ secrets.PLAYSTORE_SERVICE_ACCOUNT_BASE64 }}
+        run: printf '%s' "$PLAYSTORE_SERVICE_ACCOUNT_BASE64" | base64 --decode > google_service_account.json
+
+      - name: Setup SSH key
+        if: matrix.os == 'ios' && env.SHOULD_RUN == 'true'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_GIT_DEPLOY_KEY }}
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        if: inputs.run_build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install CocoaPods
+        if: matrix.os == 'ios' && env.SHOULD_RUN == 'true'
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Release to Play Store
+        if: matrix.os == 'android' && env.SHOULD_RUN == 'true'
+        working-directory: ${{ matrix.fastlane_dir }}
+        run: bundle exec fastlane release_play_store
+        env:
+          APP_PACKAGE_NAME: ${{ vars.APP_PACKAGE_NAME }}
+
+      - name: Release to TestFlight (production)
+        if: matrix.os == 'ios' && env.SHOULD_RUN == 'true'
+        working-directory: ${{ matrix.fastlane_dir }}
+        run: bundle exec fastlane release_testflight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}

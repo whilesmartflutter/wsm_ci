@@ -1,0 +1,240 @@
+import "../../Fastfile"
+
+default_platform(:ios)
+
+# "What to Test" text for a TestFlight build. Falls back to the last commit
+# subject so a build is never delivered with an empty changelog, and clamps to
+# App Store Connect's 4000-character limit.
+def testflight_changelog(release_notes)
+  notes = release_notes.to_s.strip
+  notes = `git log -1 --pretty=%B`.strip if notes.empty?
+  notes.length > 4000 ? notes[0, 3997] + "..." : notes
+end
+
+platform :ios do
+  # Authenticate with Apple Store
+  private_lane :authenticate_apple_store do
+    app_store_connect_api_key(
+        key_id: ENV["ASC_KEY_ID"],
+        issuer_id: ENV["ASC_ISSUER_ID"],
+        key_content: ENV["ASC_KEY_P8_BASE64"],
+      is_key_content_base64: true,
+      duration: 1200,
+      in_house: false
+    )
+  end
+
+  desc "Setup certificates and profiles for all app variants"
+  lane :setup_certificates do
+    authenticate_apple_store
+
+    if is_ci
+      setup_ci
+    end
+
+    match(
+      type: "appstore",
+      app_identifier: "com.whilesmart.desk",
+      readonly: false
+    )
+
+    match(
+      type: "appstore",
+      app_identifier: "com.whilesmart.desk.stg",
+      readonly: false
+    )
+  end
+
+  private_lane :copy_firebase_plist do |options|
+    flavor = options[:flavor]
+    source_path = "#{root_path}/ios/Runner/Firebase/#{flavor}/GoogleService-Info.plist"
+    destination_path = "Runner/GoogleService-Info.plist"
+
+    expanded_source = File.expand_path(source_path)
+    if File.file?(expanded_source) && File.size(expanded_source) > 0
+      FileUtils.cp(expanded_source, File.expand_path(destination_path))
+      UI.message("Copied #{flavor} GoogleService-Info.plist")
+    else
+      UI.important("GoogleService-Info.plist for #{flavor} is missing or empty at #{source_path}; skipping Firebase plist copy. Add it under ios/Runner/Firebase/#{flavor}/ once a Firebase app exists for WhileSmart Desk.")
+    end
+  end
+
+  # Build iOS app
+  private_lane :build_ipa do |options|
+    authenticate_apple_store
+
+    flavor = options[:flavor] || 'production'
+    environment = case flavor
+                  when 'development' then 'dev'
+                  when 'staging' then 'staging'
+                  else 'prod'
+                  end
+
+    copy_firebase_plist(flavor: flavor)
+
+    build_flutter_app(
+      type: "ipa",
+      no_codesign: is_ci || options[:no_codesign] || false,
+      config_only: options[:config_only] || false,
+      build_number: options[:build_number] || get_build_number('appstore', options[:app_identifier]),
+      version_number: options[:version_number] || get_version_from_tag_or_pubspec(),
+      store: "appstore",
+      environment: environment,
+      flavor: flavor,
+      target: options[:target],
+      app_identifier: options[:app_identifier]
+    )
+  end
+
+  desc "Release to TestFlight (Production)"
+  lane :release_testflight do |options|
+    app_identifier = ENV["APP_BUNDLE_ID"] || "com.whilesmart.desk"
+
+    authenticate_apple_store
+
+    build_number = options.fetch(:build_number, get_build_number('appstore', app_identifier))
+    version_number = options.fetch(:version_number, get_version_from_tag_or_pubspec())
+
+    UI.message("Building version #{version_number} to TestFlight (production)")
+    UI.message("Build number: #{build_number}")
+
+    if !is_ci && (!options[:version_number])
+      continue = UI.confirm("Deploying version #{version_number} to TestFlight (production). Continue?")
+      unless continue
+        UI.user_error!("Aborted")
+      end
+    end
+
+    UI.message("Syncing certificates and profiles")
+    if is_ci
+      UI.message("CI detected. Setting up CI environment")
+      setup_ci
+    end
+
+    sync_code_signing(
+      type: "appstore",
+      app_identifier: app_identifier,
+      readonly: is_ci,
+    )
+
+    build_ipa(
+      build_number: build_number,
+      version_number: version_number,
+      flavor: 'production',
+      target: 'lib/main_production.dart',
+      app_identifier: app_identifier
+    )
+
+    profile_mapping = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING] || {}
+    provisioning_profile_name = profile_mapping[app_identifier] || "match AppStore #{app_identifier}"
+
+    build_app(
+      scheme: "production",
+      skip_build_archive: true,
+      archive_path: "#{root_path}/build/ios/archive/Runner.xcarchive",
+      export_method: "app-store",
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: ENV["APPLE_TEAM_ID"],
+        provisioningProfiles: {
+          app_identifier => provisioning_profile_name
+        }
+      }
+    )
+
+    gsp_path = "#{root_path}/ios/Runner/GoogleService-Info.plist"
+    if File.file?(gsp_path) && File.directory?("#{root_path}/ios/Pods/FirebaseCrashlytics")
+      upload_symbols_to_crashlytics(gsp_path: gsp_path)
+    end
+
+    upload_to_testflight(
+      app_identifier: app_identifier,
+      changelog: testflight_changelog(options[:release_notes]),
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Release to TestFlight (Staging)"
+  lane :release_testflight_staging do |options|
+    app_identifier = "com.whilesmart.desk.stg"
+
+    authenticate_apple_store
+
+    build_number = options.fetch(:build_number, get_build_number('appstore', app_identifier))
+    version_number = options.fetch(:version_number, get_version_from_tag_or_pubspec())
+
+    UI.message("Building version #{version_number} to TestFlight (staging)")
+    UI.message("Build number: #{build_number}")
+
+    if !is_ci && (!options[:version_number])
+      continue = UI.confirm("Deploying version #{version_number} to TestFlight (staging). Continue?")
+      unless continue
+        UI.user_error!("Aborted")
+      end
+    end
+
+    UI.message("Syncing certificates and profiles")
+    if is_ci
+      UI.message("CI detected. Setting up CI environment")
+      setup_ci
+    end
+
+    sync_code_signing(
+      type: "appstore",
+      app_identifier: app_identifier,
+      readonly: is_ci,
+    )
+
+    build_ipa(
+      build_number: build_number,
+      version_number: version_number,
+      flavor: 'staging',
+      target: 'lib/main_staging.dart',
+      app_identifier: app_identifier
+    )
+
+    profile_mapping = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING] || {}
+    provisioning_profile_name = profile_mapping[app_identifier] || "match AppStore #{app_identifier}"
+
+    build_app(
+      scheme: "staging",
+      skip_build_archive: true,
+      archive_path: "#{root_path}/build/ios/archive/Runner.xcarchive",
+      export_method: "app-store",
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: ENV["APPLE_TEAM_ID"],
+        provisioningProfiles: {
+          app_identifier => provisioning_profile_name
+        }
+      }
+    )
+
+    upload_to_testflight(
+      app_identifier: app_identifier,
+      changelog: testflight_changelog(options[:release_notes]),
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Release to Firebase App Distribution (Staging)"
+  lane :release_firebase_staging do |options|
+    build_ipa(
+      build_number: options[:build_number],
+      version_number: options[:version_number],
+      flavor: 'staging',
+      target: 'lib/main_staging.dart',
+      app_identifier: "com.whilesmart.desk.stg"
+    )
+
+    firebase_app_distribution(
+      app: ENV["FIREBASE_APP_ID_IOS_STAGING"] || ENV["FIREBASE_APP_ID"],
+      ipa_path: "#{root_path}/build/ios/ipa/Runner.ipa",
+      service_credentials_file: google_firebase_service_account_json_path,
+      release_notes: options[:release_notes] || `git log -1 --pretty=short`.strip,
+      groups: options[:groups] || "qa-testers",
+    )
+  end
+end
