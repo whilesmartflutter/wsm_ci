@@ -35,7 +35,7 @@ Each app's Fastfiles become one line:
 import_from_git(
   url: "https://github.com/whilesmartflutter/wsm_ci.git",
   path: "ios/fastlane/Fastfile",
-  version: "v1",
+  version: "1.0.0",
 )
 ```
 
@@ -44,7 +44,7 @@ import_from_git(
 import_from_git(
   url: "https://github.com/whilesmartflutter/wsm_ci.git",
   path: "android/fastlane/Fastfile",
-  version: "v1",
+  version: "1.0.0",
 )
 ```
 
@@ -79,7 +79,7 @@ on:
 
 jobs:
   distribute:
-    uses: whilesmartflutter/wsm_ci/.github/workflows/staging-distribute.yml@v1
+    uses: whilesmartflutter/wsm_ci/.github/workflows/staging-distribute.yml@1.0.0
     with:
       platforms: ${{ inputs.platforms }}
       release_notes: ${{ inputs.release_notes }}
@@ -99,7 +99,7 @@ on:
 
 jobs:
   release:
-    uses: whilesmartflutter/wsm_ci/.github/workflows/release.yml@v1
+    uses: whilesmartflutter/wsm_ci/.github/workflows/release.yml@1.0.0
     with:
       platform: ${{ inputs.platform || 'all' }}
     secrets: inherit
@@ -130,8 +130,13 @@ names identical — that consistency is what makes `secrets: inherit` viable.
 
 ## Versioning
 
-Tagged `v1`, `v1.1.0`, …; callers pin a tag. **Never point an app at `@main`**
-— a change here would reach four release pipelines at once with no review.
+Tags are **plain semver — `1.0.0`, not `v1.0.0`**. That is not a style choice:
+fastlane's `import_from_git` parses `version:` as a `Gem::Requirement`, so a
+`v`-prefixed tag fails with `Illformed requirement ["v1"]`. GitHub's `uses:`
+accepts any ref, so one semver tag serves both and they move together.
 
-Breaking changes (a renamed input, a new required secret) get a new major tag,
-and apps migrate one at a time.
+Callers pin an exact tag. **Never point an app at `@main`** — a change here
+would reach four release pipelines at once with no review.
+
+Breaking changes (a renamed input, a new required secret) get a new major
+version, and apps migrate one at a time.
