@@ -1,4 +1,3 @@
-import "../../Fastfile"
 
 default_platform(:ios)
 

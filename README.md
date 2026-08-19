@@ -16,13 +16,11 @@ Only **nine lines per app** are genuinely app-specific (`Appfile`,
 
 ```
 Fastfile                    # shared helper lanes (build_flutter_app, versioning, …)
-ios/fastlane/Fastfile       # iOS lanes  — imports ../../Fastfile
+ios/fastlane/Fastfile       # iOS lanes     — no relative imports, see below
 android/fastlane/Fastfile   # Android lanes
+*/actions/.gitkeep          # import_from_git checks out an actions dir per Fastfile
 .github/workflows/          # reusable workflows (workflow_call)
 ```
-
-The tree deliberately mirrors a Flutter app so the Fastfiles' relative
-`import "../../Fastfile"` resolves inside a clone.
 
 ## Using it in an app
 
@@ -32,21 +30,22 @@ Each app's Fastfiles become one line:
 
 ```ruby
 # ios/fastlane/Fastfile
-import_from_git(
-  url: "https://github.com/whilesmartflutter/wsm_ci.git",
-  path: "ios/fastlane/Fastfile",
-  version: "1.0.0",
-)
+WSM_CI = "https://github.com/whilesmartflutter/wsm_ci.git".freeze
+WSM_CI_VERSION = "1.0.0".freeze
+
+# Shared helpers first — the platform lanes call them at parse time.
+import_from_git(url: WSM_CI, path: "Fastfile", version: WSM_CI_VERSION)
+import_from_git(url: WSM_CI, path: "ios/fastlane/Fastfile", version: WSM_CI_VERSION)
 ```
 
-```ruby
-# android/fastlane/Fastfile
-import_from_git(
-  url: "https://github.com/whilesmartflutter/wsm_ci.git",
-  path: "android/fastlane/Fastfile",
-  version: "1.0.0",
-)
-```
+Android is the same with `path: "android/fastlane/Fastfile"`.
+
+**Both imports are required.** A Fastfile fetched from git cannot use a
+relative `import` to pull in a sibling: fastlane resolves that path against
+the *calling* app's directory, not the clone, so
+`import "../../Fastfile"` inside a shared file looks for a Fastfile in the app
+and fails with `Could not find Fastfile at path`. The shared files therefore
+contain no relative imports, and each app imports both pieces explicitly.
 
 `Appfile` and `Matchfile` stay in the app — they hold the bundle id, package
 name and certificates repo.
