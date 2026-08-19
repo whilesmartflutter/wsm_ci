@@ -82,7 +82,18 @@ jobs:
     with:
       platforms: ${{ inputs.platforms }}
       release_notes: ${{ inputs.release_notes }}
-    secrets: inherit
+    secrets:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_GIT_DEPLOY_KEY: ${{ secrets.MATCH_GIT_DEPLOY_KEY }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_APP_ID_ANDROID_STAGING: ${{ secrets.FIREBASE_APP_ID_ANDROID_STAGING }}
 ```
 
 ```yaml
@@ -101,11 +112,17 @@ jobs:
     uses: whilesmartflutter/wsm_ci/.github/workflows/release.yml@1.0.0
     with:
       platform: ${{ inputs.platform || 'all' }}
-    secrets: inherit
+    secrets:
+      # …the release set; see the stubs in whilesmartdesk/mobile
 ```
 
-`secrets: inherit` passes the calling repo's secrets through. That works
-because every app uses the **same secret names** — see below.
+**Pass secrets explicitly — `secrets: inherit` does not work here.** The apps
+live in `whilesmartdesk`, `WhilesmartPay` and `krewcore`, while this repo is
+in `whilesmartflutter`. `inherit` does not carry secrets across
+organisations: they arrive empty and the lane fails with a confusing
+`ENV "X" is not set`, even though the secret is set on the calling repo.
+Repository *variables* (`vars`) do resolve, which makes the failure look
+stranger than it is.
 
 ## Contract: secrets and variables the caller must define
 

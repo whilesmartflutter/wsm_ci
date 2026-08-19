@@ -35,6 +35,18 @@ on:
         default: false
         type: boolean
 
+    secrets:
+      ASC_KEY_ID: { required: false }
+      ASC_ISSUER_ID: { required: false }
+      ASC_KEY_P8_BASE64: { required: false }
+      APPLE_TEAM_ID: { required: false }
+      MATCH_PASSWORD: { required: false }
+      MATCH_GIT_DEPLOY_KEY: { required: false }
+      ANDROID_KEYSTORE_BASE64: { required: false }
+      ANDROID_KEYSTORE_PASSWORD: { required: false }
+      ANDROID_KEY_PASSWORD: { required: false }
+      PLAYSTORE_SERVICE_ACCOUNT_BASE64: { required: false }
+
 jobs:
   release:
     name: Tag Release - ${{ matrix.platform_name }}

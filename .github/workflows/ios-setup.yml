@@ -9,6 +9,14 @@ on:
         default: '3.2.2'
         type: string
 
+    secrets:
+      ASC_KEY_ID: { required: true }
+      ASC_ISSUER_ID: { required: true }
+      ASC_KEY_P8_BASE64: { required: true }
+      APPLE_TEAM_ID: { required: false }
+      MATCH_PASSWORD: { required: true }
+      MATCH_GIT_DEPLOY_KEY: { required: true }
+
 jobs:
   setup-certificates:
     runs-on: macos-latest
