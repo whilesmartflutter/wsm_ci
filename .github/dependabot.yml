@@ -1,0 +1,8 @@
+# The shared workflows are the only place these action versions are declared
+# now, so keeping them current here keeps every app current.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
