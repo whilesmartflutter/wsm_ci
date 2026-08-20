@@ -104,6 +104,14 @@ jobs:
           storeFile=key.jks
           EOP
 
+      - name: Generate code
+        run: |
+          if grep -qE '^  build_runner:' pubspec.yaml; then
+            dart run build_runner build --delete-conflicting-outputs
+          else
+            echo "build_runner is not a dependency; skipping code generation."
+          fi
+
       - name: Install Fastlane gems
         working-directory: android/fastlane
         run: bundle install
@@ -135,6 +143,14 @@ jobs:
           ruby-version: ${{ inputs.ruby_version }}
           bundler-cache: true
           working-directory: ios/fastlane
+
+      - name: Generate code
+        run: |
+          if grep -qE '^  build_runner:' pubspec.yaml; then
+            dart run build_runner build --delete-conflicting-outputs
+          else
+            echo "build_runner is not a dependency; skipping code generation."
+          fi
 
       - name: Install Fastlane gems
         working-directory: ios/fastlane

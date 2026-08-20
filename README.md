@@ -96,6 +96,13 @@ jobs:
       FIREBASE_APP_ID_ANDROID_STAGING: ${{ secrets.FIREBASE_APP_ID_ANDROID_STAGING }}
 ```
 
+Code generation needs no configuration: both workflows run `build_runner`
+when the app declares it in `pubspec.yaml`, and log a skip when it does not.
+Making it an opt-in flag was a mistake — an app that adds `freezed` or
+`injectable` later would build against stale generated code, and a missing
+`injection.config.dart` registration fails at *runtime* with a `get_it`
+lookup error rather than at compile time.
+
 ```yaml
 # .github/workflows/release.yml
 on:
