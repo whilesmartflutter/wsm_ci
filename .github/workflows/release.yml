@@ -160,3 +160,4 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
+          APP_BUNDLE_ID_STAGING: ${{ vars.APP_BUNDLE_ID_STAGING }}

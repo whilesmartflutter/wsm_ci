@@ -44,3 +44,5 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
+          APP_BUNDLE_ID_STAGING: ${{ vars.APP_BUNDLE_ID_STAGING }}
