@@ -96,6 +96,12 @@ jobs:
       FIREBASE_APP_ID_ANDROID_STAGING: ${{ secrets.FIREBASE_APP_ID_ANDROID_STAGING }}
 ```
 
+The iOS jobs install the **FlutterFire CLI** when the app declares
+`firebase_core`. An app configured with `flutterfire configure` gets Xcode
+run-script phases that shell out to that CLI, and without it the archive fails
+with a bare `PhaseScriptExecution failed`, several screens away from the cause.
+Apps without Firebase skip it.
+
 Code generation needs no configuration: both workflows run `build_runner`
 when the app declares it in `pubspec.yaml`, and log a skip when it does not.
 Making it an opt-in flag was a mistake — an app that adds `freezed` or

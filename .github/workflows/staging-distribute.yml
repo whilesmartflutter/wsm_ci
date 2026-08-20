@@ -152,6 +152,19 @@ jobs:
             echo "build_runner is not a dependency; skipping code generation."
           fi
 
+      - name: Install FlutterFire CLI
+        run: |
+          # An app configured with `flutterfire configure` gets Xcode run-script
+          # phases that shell out to the flutterfire CLI (bundle-service-file,
+          # upload-crashlytics-symbols). Without it on PATH the archive fails
+          # with PhaseScriptExecution, several screens away from the cause.
+          if grep -qE '^  firebase_core:' pubspec.yaml; then
+            dart pub global activate flutterfire_cli
+            echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          else
+            echo "firebase_core is not a dependency; skipping FlutterFire CLI."
+          fi
+
       - name: Install Fastlane gems
         working-directory: ios/fastlane
         run: bundle install
