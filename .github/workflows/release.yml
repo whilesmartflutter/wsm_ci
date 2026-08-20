@@ -111,9 +111,15 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
         run: |
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/key.jks
+          # PKCS12 — the default keystore format since Java 9 — has no
+          # per-key password: keytool refuses `-keypasswd` on one entirely.
+          # So ANDROID_KEY_PASSWORD is optional and falls back to the store
+          # password. `:-` covers both unset and empty, and GitHub sets an
+          # undefined secret to an empty string.
+          KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
           cat <<EOP > android/key.properties
           storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
+          keyPassword=$KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=key.jks
           EOP

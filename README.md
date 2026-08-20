@@ -131,7 +131,8 @@ stranger than it is.
 | `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_BASE64` | all iOS lanes |
 | `APPLE_TEAM_ID` | iOS signing |
 | `MATCH_PASSWORD`, `MATCH_GIT_DEPLOY_KEY` | certificate sync |
-| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` | Android signing |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` | Android signing |
+| `ANDROID_KEY_PASSWORD` | **optional** — defaults to the store password |
 | `FIREBASE_SERVICE_ACCOUNT_JSON`, `FIREBASE_APP_ID_ANDROID_STAGING` | Android staging |
 | `PLAYSTORE_SERVICE_ACCOUNT_BASE64` | production release |
 
@@ -147,7 +148,14 @@ hardcoded to a particular app — a missing `APP_BUNDLE_ID` raises a clear error
 rather than silently signing with another app's identifier.
 
 An app missing one of these fails inside the shared workflow, so keep the
-names identical — that consistency is what makes `secrets: inherit` viable.
+names identical.
+
+`ANDROID_KEY_PASSWORD` is optional on purpose. PKCS12 — the default keystore
+format since Java 9 — has no per-key password; `keytool -keypasswd` refuses to
+run on one. Every WhileSmart keystore is PKCS12, so the two values are
+necessarily identical, and requiring both only created a way to get it wrong:
+mobile-pay never set it, so its production release wrote an empty key password
+and could not have signed.
 
 ## Versioning
 
