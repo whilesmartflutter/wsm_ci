@@ -1,6 +1,19 @@
 
 default_platform(:ios)
 
+# The app's bundle ids. Every app sets APP_BUNDLE_ID (a repo variable); the
+# staging id defaults to "<bundle>.stg" and can be overridden outright with
+# APP_BUNDLE_ID_STAGING for apps that do not follow that convention.
+def app_bundle_id
+  ENV.fetch("APP_BUNDLE_ID") do
+    UI.user_error!("APP_BUNDLE_ID is not set. Define it as a repository variable.")
+  end
+end
+
+def staging_bundle_id
+  ENV["APP_BUNDLE_ID_STAGING"] || "#{app_bundle_id}.stg"
+end
+
 # "What to Test" text for a TestFlight build. Falls back to the last commit
 # subject so a build is never delivered with an empty changelog, and clamps to
 # App Store Connect's 4000-character limit.
@@ -33,13 +46,13 @@ platform :ios do
 
     match(
       type: "appstore",
-      app_identifier: "com.whilesmart.desk",
+      app_identifier: app_bundle_id,
       readonly: false
     )
 
     match(
       type: "appstore",
-      app_identifier: "com.whilesmart.desk.stg",
+      app_identifier: staging_bundle_id,
       readonly: false
     )
   end
@@ -54,7 +67,7 @@ platform :ios do
       FileUtils.cp(expanded_source, File.expand_path(destination_path))
       UI.message("Copied #{flavor} GoogleService-Info.plist")
     else
-      UI.important("GoogleService-Info.plist for #{flavor} is missing or empty at #{source_path}; skipping Firebase plist copy. Add it under ios/Runner/Firebase/#{flavor}/ once a Firebase app exists for WhileSmart Desk.")
+      UI.important("GoogleService-Info.plist for #{flavor} is missing or empty at #{source_path}; skipping Firebase plist copy. Add it under ios/Runner/Firebase/#{flavor}/ once a Firebase app exists for this flavor.")
     end
   end
 
@@ -87,7 +100,7 @@ platform :ios do
 
   desc "Release to TestFlight (Production)"
   lane :release_testflight do |options|
-    app_identifier = ENV["APP_BUNDLE_ID"] || "com.whilesmart.desk"
+    app_identifier = app_bundle_id
 
     authenticate_apple_store
 
@@ -156,7 +169,7 @@ platform :ios do
 
   desc "Release to TestFlight (Staging)"
   lane :release_testflight_staging do |options|
-    app_identifier = "com.whilesmart.desk.stg"
+    app_identifier = staging_bundle_id
 
     authenticate_apple_store
 
@@ -225,7 +238,7 @@ platform :ios do
       version_number: options[:version_number],
       flavor: 'staging',
       target: 'lib/main_staging.dart',
-      app_identifier: "com.whilesmart.desk.stg"
+      app_identifier: staging_bundle_id
     )
 
     firebase_app_distribution(

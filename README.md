@@ -139,7 +139,12 @@ stranger than it is.
 |---|---|
 | `ANDROID_KEY_ALIAS` | keystore alias, e.g. `release` |
 | `APP_PACKAGE_NAME` | Android application id |
-| `APP_BUNDLE_ID` | iOS bundle id |
+| `APP_BUNDLE_ID` | iOS bundle id — **required**; the lanes fail fast without it |
+| `APP_BUNDLE_ID_STAGING` | optional; defaults to `<APP_BUNDLE_ID>.stg` |
+
+The iOS lanes derive every identifier from `APP_BUNDLE_ID`. Nothing here is
+hardcoded to a particular app — a missing `APP_BUNDLE_ID` raises a clear error
+rather than silently signing with another app's identifier.
 
 An app missing one of these fails inside the shared workflow, so keep the
 names identical — that consistency is what makes `secrets: inherit` viable.
