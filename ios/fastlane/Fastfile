@@ -4,14 +4,23 @@ default_platform(:ios)
 # The app's bundle ids. Every app sets APP_BUNDLE_ID (a repo variable); the
 # staging id defaults to "<bundle>.stg" and can be overridden outright with
 # APP_BUNDLE_ID_STAGING for apps that do not follow that convention.
+# Note: GitHub Actions sets an undefined repository variable to an EMPTY
+# STRING rather than leaving it unset, and "" is truthy in Ruby. Every read
+# below therefore treats blank as absent — `ENV["X"] || default` would hand
+# back "" and, for a bundle id, produce `'' is not a valid filter` from App
+# Store Connect several steps later.
+def env_or_nil(key)
+  value = ENV[key].to_s.strip
+  value.empty? ? nil : value
+end
+
 def app_bundle_id
-  ENV.fetch("APP_BUNDLE_ID") do
+  env_or_nil("APP_BUNDLE_ID") ||
     UI.user_error!("APP_BUNDLE_ID is not set. Define it as a repository variable.")
-  end
 end
 
 def staging_bundle_id
-  ENV["APP_BUNDLE_ID_STAGING"] || "#{app_bundle_id}.stg"
+  env_or_nil("APP_BUNDLE_ID_STAGING") || "#{app_bundle_id}.stg"
 end
 
 # "What to Test" text for a TestFlight build. Falls back to the last commit
