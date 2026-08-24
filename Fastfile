@@ -45,8 +45,28 @@ lane :build_flutter_app do |options|
   command += " --target #{target}" if target.to_s != ""
   command += " --build-number=#{build_number}" if build_number.to_s != ""
   command += " --build-name=#{version_number}" if version_number.to_s != ""
-  command += " --no-codesign" if no_codesign
-  command += " --config-only" if config_only
+
+  # Not every flag exists on every `flutter build` subcommand, and passing one
+  # that does not is a hard failure ("Could not find an option named ..."),
+  # not a warning. Checked against Flutter 3.41 on Linux, where the Android
+  # subcommands live:
+  #
+  #   apk        --config-only, no --no-codesign
+  #   appbundle  neither
+  #
+  # ios/ipa are macOS-only so they could not be checked the same way; both
+  # flags are documented for them, which is the case this gate preserves.
+  ios_build = %w[ios ipa].include?(type.to_s)
+  command += " --no-codesign" if no_codesign && ios_build
+  command += " --config-only" if config_only && type.to_s != 'appbundle'
+
+  if no_codesign && !ios_build
+    UI.important(
+      "Ignoring no_codesign: `flutter build #{type}` has no --no-codesign " \
+      'flag, it is iOS-only. Android release signing comes from ' \
+      'android/key.properties instead.'
+    )
+  end
 
   UI.message("Building #{type} - version: #{version_number} - build: #{build_number} - commit: #{commit[:abbreviated_commit_hash]} - env: #{environment} - flavor: #{flavor}")
 
