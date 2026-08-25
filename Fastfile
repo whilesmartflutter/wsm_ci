@@ -5,6 +5,22 @@ def root_path
   Dir.pwd.sub(/.*\Kfastlane/, '').sub(/.*\Kandroid/, '').sub(/.*\Kios/, '').sub(/.*\K\/\//, '')
 end
 
+# Release notes for a build, falling back to the last real commit message.
+#
+# Takes the blank case seriously: the staging workflow's "Release notes" field
+# is optional, and a skipped field arrives here as "", not as nil. `||` alone
+# does not catch that — "" is truthy in Ruby — so a blank field used to reach
+# testers as genuinely empty notes.
+#
+# --no-merges because these repos land PRs as merge commits: without it the
+# fallback is "Merge pull request #12 from org/branch", which tells a tester
+# nothing. The last non-merge commit is the change they are being asked to
+# test.
+def release_notes_or_last_commit(release_notes)
+  notes = release_notes.to_s.strip
+  notes.empty? ? `git log -1 --no-merges --pretty=%B`.strip : notes
+end
+
 # Have an easy way to run flutter tasks on the root of the project
 lane :sh_on_root do |options|
   command = options[:command]
