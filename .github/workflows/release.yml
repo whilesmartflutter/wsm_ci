@@ -127,7 +127,7 @@ jobs:
 
       - name: Setup SSH key
         if: matrix.os == 'ios' && env.SHOULD_RUN == 'true'
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.MATCH_GIT_DEPLOY_KEY }}
 
