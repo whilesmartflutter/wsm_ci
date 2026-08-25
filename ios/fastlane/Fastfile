@@ -23,12 +23,10 @@ def staging_bundle_id
   env_or_nil("APP_BUNDLE_ID_STAGING") || "#{app_bundle_id}.stg"
 end
 
-# "What to Test" text for a TestFlight build. Falls back to the last commit
-# subject so a build is never delivered with an empty changelog, and clamps to
+# "What to Test" text for a TestFlight build: the shared fallback, clamped to
 # App Store Connect's 4000-character limit.
 def testflight_changelog(release_notes)
-  notes = release_notes.to_s.strip
-  notes = `git log -1 --pretty=%B`.strip if notes.empty?
+  notes = release_notes_or_last_commit(release_notes)
   notes.length > 4000 ? notes[0, 3997] + "..." : notes
 end
 
@@ -254,7 +252,7 @@ platform :ios do
       app: ENV["FIREBASE_APP_ID_IOS_STAGING"] || ENV["FIREBASE_APP_ID"],
       ipa_path: "#{root_path}/build/ios/ipa/Runner.ipa",
       service_credentials_file: google_firebase_service_account_json_path,
-      release_notes: options[:release_notes] || `git log -1 --pretty=short`.strip,
+      release_notes: release_notes_or_last_commit(options[:release_notes]),
       groups: options[:groups] || "qa-testers",
     )
   end

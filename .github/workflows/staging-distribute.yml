@@ -10,7 +10,8 @@ on:
         required: true
         type: string
       release_notes:
-        required: true
+        required: false
+        default: ''
         type: string
       flavor:
         required: false

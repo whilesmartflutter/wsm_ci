@@ -90,7 +90,7 @@ platform :android do
       app: ENV["FIREBASE_APP_ID_ANDROID_STAGING"],
       android_artifact_path: get_android_apk_path('staging'),
       service_credentials_file: google_firebase_service_account_json_path,
-      release_notes: options[:release_notes] || `git log -1 --pretty=short`.strip,
+      release_notes: release_notes_or_last_commit(options[:release_notes]),
       groups: options[:groups] || "qa-testers",
       debug: true
     )
