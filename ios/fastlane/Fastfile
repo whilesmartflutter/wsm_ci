@@ -67,7 +67,10 @@ platform :ios do
   private_lane :copy_firebase_plist do |options|
     flavor = options[:flavor]
     source_path = "#{root_path}/ios/Runner/Firebase/#{flavor}/GoogleService-Info.plist"
-    destination_path = "Runner/GoogleService-Info.plist"
+    # Anchor to root_path like the source does. Fastlane runs with Dir.pwd at
+    # ios/fastlane, so a relative "Runner/..." resolved to ios/fastlane/Runner
+    # and raised Errno::ENOENT for every app that actually has a plist to copy.
+    destination_path = "#{root_path}/ios/Runner/GoogleService-Info.plist"
 
     expanded_source = File.expand_path(source_path)
     if File.file?(expanded_source) && File.size(expanded_source) > 0
