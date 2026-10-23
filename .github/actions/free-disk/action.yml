@@ -1,0 +1,11 @@
+name: Free runner disk
+description: Delete preinstalled toolchains Flutter builds never use, so the Android NDK download fits.
+runs:
+  using: composite
+  steps:
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/share/swift /usr/local/.ghcup \
+          /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+        df -h /

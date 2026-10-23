@@ -20,6 +20,15 @@ ios/fastlane/Fastfile       # iOS lanes     — no relative imports, see below
 android/fastlane/Fastfile   # Android lanes
 */actions/.gitkeep          # import_from_git checks out an actions dir per Fastfile
 .github/workflows/          # reusable workflows (workflow_call)
+.github/actions/free-disk/  # step for app PR checks that build Android
+```
+
+An app's own PR check that builds an APK should free disk first. The runner
+image no longer ships the NDK Flutter pins, and downloading it fills the disk:
+
+```yaml
+    steps:
+      - uses: whilesmartflutter/wsm_ci/.github/actions/free-disk@1.3.5
 ```
 
 ## Using it in an app
