@@ -56,6 +56,13 @@ jobs:
     runs-on: ubuntu-latest
     if: contains(inputs.platforms, 'android') || inputs.platforms == 'both'
     steps:
+      - name: Free disk space
+        # Same as .github/actions/free-disk, which a reusable workflow can't use by path.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/share/swift /usr/local/.ghcup \
+            /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
       - name: Checkout code
         uses: actions/checkout@v4
 
