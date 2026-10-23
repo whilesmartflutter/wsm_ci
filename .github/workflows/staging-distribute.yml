@@ -64,7 +64,7 @@ jobs:
           df -h /
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -136,7 +136,7 @@ jobs:
     if: contains(inputs.platforms, 'ios') || inputs.platforms == 'both'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
