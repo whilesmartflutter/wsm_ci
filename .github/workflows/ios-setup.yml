@@ -4,6 +4,9 @@ name: iOS Certificate Setup (reusable)
 on:
   workflow_call:
     inputs:
+      ios_runner:
+        type: string
+        default: macos-latest
       ruby_version:
         required: false
         default: '3.2.2'
@@ -19,7 +22,7 @@ on:
 
 jobs:
   setup-certificates:
-    runs-on: macos-latest
+    runs-on: ${{ inputs.ios_runner }}
     steps:
       - uses: actions/checkout@v4
 

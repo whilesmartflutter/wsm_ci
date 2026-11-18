@@ -4,6 +4,12 @@ name: Tag Release (reusable)
 on:
   workflow_call:
     inputs:
+      android_runner:
+        type: string
+        default: ubuntu-latest
+      ios_runner:
+        type: string
+        default: macos-latest
       platform:
         description: 'all | android | ios'
         required: false
@@ -54,16 +60,16 @@ jobs:
         include:
           - os: android
             platform_name: Android
-            runner: ubuntu-latest
+            runner: ${{ inputs.android_runner }}
             fastlane_dir: android/fastlane
           - os: ios
             platform_name: iOS
-            runner: macos-latest
+            runner: ${{ inputs.ios_runner }}
             fastlane_dir: ios/fastlane
 
     steps:
       - name: Free disk space
-        if: matrix.os == 'android' && env.SHOULD_RUN == 'true'
+        if: runner.environment == 'github-hosted' && matrix.os == 'android' && env.SHOULD_RUN == 'true'
         # Same as .github/actions/free-disk, which a reusable workflow can't use by path.
         run: |
           sudo rm -rf /usr/share/dotnet /usr/share/swift /usr/local/.ghcup \
