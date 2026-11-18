@@ -5,6 +5,8 @@ name: Staging Distribution (reusable)
 on:
   workflow_call:
     inputs:
+      android_flutter_arch:
+        type: string
       android_runner:
         type: string
         default: ubuntu-latest
@@ -76,6 +78,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          architecture: ${{ inputs.android_flutter_arch || runner.arch }}
           flutter-version: ${{ inputs.flutter_version }}
           channel: ${{ inputs.flutter_channel }}
           cache: true
