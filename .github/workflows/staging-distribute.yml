@@ -5,6 +5,9 @@ name: Staging Distribution (reusable)
 on:
   workflow_call:
     inputs:
+      cache_flutter_sdk:
+        type: boolean
+        default: true
       android_flutter_arch:
         type: string
       android_runner:
@@ -81,7 +84,8 @@ jobs:
           architecture: ${{ inputs.android_flutter_arch || runner.arch }}
           flutter-version: ${{ inputs.flutter_version }}
           channel: ${{ inputs.flutter_channel }}
-          cache: true
+          cache: ${{ inputs.cache_flutter_sdk }}
+          pub-cache: true
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -154,7 +158,8 @@ jobs:
         with:
           flutter-version: ${{ inputs.flutter_version }}
           channel: ${{ inputs.flutter_channel }}
-          cache: true
+          cache: ${{ inputs.cache_flutter_sdk }}
+          pub-cache: true
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
