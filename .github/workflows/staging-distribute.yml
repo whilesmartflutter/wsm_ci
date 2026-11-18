@@ -136,8 +136,9 @@ jobs:
 
       - name: Distribute to Firebase App Distribution
         working-directory: android/fastlane
-        run: bundle exec fastlane release_firebase_app_distribution release_notes:"${{ inputs.release_notes }}"
+        run: bundle exec fastlane release_firebase_app_distribution release_notes:"$RELEASE_NOTES"
         env:
+          RELEASE_NOTES: ${{ inputs.release_notes }}
           FIREBASE_APP_ID_ANDROID_STAGING: ${{ secrets.FIREBASE_APP_ID_ANDROID_STAGING }}
           APP_PACKAGE_NAME: ${{ vars.APP_PACKAGE_NAME }}
 
@@ -199,8 +200,9 @@ jobs:
 
       - name: Distribute to TestFlight (staging)
         working-directory: ios/fastlane
-        run: bundle exec fastlane release_testflight_staging release_notes:"${{ inputs.release_notes }}"
+        run: bundle exec fastlane release_testflight_staging release_notes:"$RELEASE_NOTES"
         env:
+          RELEASE_NOTES: ${{ inputs.release_notes }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
